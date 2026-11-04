@@ -1,0 +1,453 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Duschen oder Baden?</title>
+<style>
+  :root {
+    --bg: #FBF8F3; --surface: #FFFFFF; --tint: #F1EADD; --ink: #1F2933; --muted: #5B6470;
+    --line: #D8D3C8; --grid: #E3E1DC; --accent: #B3431A; --on-accent: #FFFFFF;
+    --neu: #C8501E; --alt: #2A6FB0;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #161B20; --surface: #1F262D; --tint: #2A323A; --ink: #F2F0EB; --muted: #AAB2BB;
+      --line: #414B55; --grid: #333C45; --accent: #F0935F; --on-accent: #1F1208;
+      --neu: #E8804F; --alt: #5AA2E0;
+    }
+  }
+  * { box-sizing: border-box; }
+  html { -webkit-text-size-adjust: 100%; }
+  body {
+    margin: 0; background: var(--bg); color: var(--ink);
+    font: 17px/1.4 system-ui, -apple-system, "Segoe UI", Roboto, "Liberation Sans", sans-serif;
+  }
+  #app {
+    max-width: 520px; min-height: 100vh; min-height: 100dvh; margin: 0 auto;
+    display: flex; flex-direction: column;
+    padding: 12px 16px calc(12px + env(safe-area-inset-bottom));
+  }
+  header { display: flex; align-items: center; gap: 8px; min-height: 44px; color: var(--muted); font-size: 15px; }
+  header .step { margin-left: auto; }
+  .link { background: none; border: 0; color: var(--accent); font: inherit; font-weight: 600; padding: 10px 8px 10px 0; min-height: 44px; cursor: pointer; }
+  main { flex: 1; display: flex; flex-direction: column; gap: 14px; padding-top: 4px; }
+  h1 { font-size: 30px; line-height: 1.12; margin: 8px 0 0; }
+  h2 { font-size: 23px; line-height: 1.2; margin: 0; }
+  h3 { font-size: 17px; margin: 0 0 6px; }
+  p { margin: 0; }
+  .muted { color: var(--muted); font-size: 15px; }
+  .grid { display: grid; gap: 10px; }
+  .two { grid-template-columns: 1fr 1fr; }
+  .three { grid-template-columns: repeat(3, 1fr); }
+  .opt {
+    min-height: 60px; padding: 10px 6px; border: 2px solid var(--line); border-radius: 12px;
+    background: var(--surface); color: var(--ink); font: inherit; font-weight: 600; cursor: pointer;
+    display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px;
+  }
+  .opt small { font-weight: 400; font-size: 14px; color: var(--muted); }
+  .opt[aria-pressed="true"] { border-color: var(--accent); background: var(--tint); box-shadow: inset 0 0 0 1px var(--accent); }
+  .opt[aria-pressed="true"]::before { content: "✓"; color: var(--accent); line-height: 1; }
+  .big-out { background: var(--tint); border-radius: 12px; padding: 12px 14px; text-align: center; }
+  .big-out strong { display: block; font-size: 38px; line-height: 1.15; font-variant-numeric: tabular-nums; }
+  .stepper { display: grid; grid-template-columns: 60px 1fr 60px; gap: 10px; align-items: center; text-align: center; }
+  .stepper output { font-size: 24px; font-weight: 700; font-variant-numeric: tabular-nums; }
+  .stepper button { min-height: 60px; font-size: 28px; }
+  input[type=range] { width: 100%; height: 44px; accent-color: var(--accent); margin: 0; }
+  label { font-weight: 600; display: block; margin-bottom: 6px; }
+  input[type=text] {
+    width: 100%; min-height: 56px; padding: 10px 14px; font: inherit; font-size: 20px;
+    color: var(--ink); background: var(--surface); border: 2px solid var(--line); border-radius: 12px;
+  }
+  input[type=text]:focus-visible, button:focus-visible { outline: 3px solid var(--alt); outline-offset: 2px; }
+  .actions { position: sticky; bottom: 0; background: var(--bg); padding: 10px 0 2px; display: grid; gap: 8px; margin-top: auto; }
+  .actions.static { position: static; }
+  .primary, .secondary {
+    width: 100%; min-height: 56px; border-radius: 12px; font: inherit; font-weight: 700; cursor: pointer; padding: 10px;
+  }
+  .primary { background: var(--accent); color: var(--on-accent); border: 0; }
+  .primary:disabled { opacity: .45; cursor: not-allowed; }
+  .secondary { background: transparent; color: var(--ink); border: 2px solid var(--line); }
+  .readouts { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .readouts div { background: var(--tint); border-radius: 12px; padding: 8px 12px; text-align: center; }
+  .readouts strong { display: block; font-size: 24px; white-space: nowrap; font-variant-numeric: tabular-nums; }
+  .bar { height: 14px; border-radius: 7px; background: var(--tint); overflow: hidden; }
+  .bar i { display: block; height: 100%; width: 0; background: var(--accent); }
+  svg.chart { display: block; width: 100%; height: auto; background: var(--surface); border-radius: 12px; touch-action: pan-y; }
+  svg.chart text { font: 12px system-ui, -apple-system, Roboto, "Liberation Sans", sans-serif; fill: var(--muted); }
+  svg.chart text.lab { fill: var(--ink); font-weight: 600; }
+  .legend { display: flex; gap: 6px 16px; flex-wrap: wrap; font-size: 14px; }
+  .legend span { display: inline-flex; align-items: center; gap: 6px; }
+  .legend svg { width: 26px; height: 8px; }
+  .fact { background: var(--tint); border-radius: 12px; padding: 12px 14px; }
+  .fact p + p { margin-top: 6px; }
+  .locked { border: 1px dashed var(--line); border-radius: 12px; padding: 10px 14px; font-size: 15px; }
+  .locked strong { display: block; margin-bottom: 2px; }
+  table.pair { width: 100%; border-collapse: collapse; background: var(--surface); border-radius: 12px; overflow: hidden; font-size: 15px; font-variant-numeric: tabular-nums; }
+  table.pair th, table.pair td { padding: 7px 8px; text-align: left; border-bottom: 1px solid var(--grid); vertical-align: top; }
+  table.pair thead th { font-size: 14px; }
+  table.pair tbody th { font-weight: 400; color: var(--muted); font-size: 14px; }
+  table.pair td { font-weight: 600; }
+  table.pair tr.changed > * { background: var(--tint); color: var(--ink); }
+  table.pair tr.changed th::after { content: " (geändert)"; font-weight: 600; font-size: 13px; }
+  details { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 10px 12px; font-size: 15px; }
+  summary { font-weight: 600; min-height: 28px; cursor: pointer; }
+  .hist { display: grid; gap: 8px; margin-top: 8px; }
+  .hist button {
+    text-align: left; font: inherit; color: var(--ink); background: transparent; cursor: pointer;
+    border: 1px solid var(--line); border-radius: 10px; padding: 8px 10px; min-height: 44px;
+  }
+  .hist button[aria-current="true"] { border: 2px solid var(--accent); background: var(--tint); }
+  .hist strong { display: block; }
+  @media (min-width: 700px) { body { font-size: 19px; } #app { max-width: 620px; } }
+</style>
+</head>
+<body>
+<div id="app">
+  <header id="top"></header>
+  <main id="main"></main>
+</div>
+<script>
+"use strict";
+// Modell: 1 l Wasser = 1 kg, keine Waermeverluste, der Boiler erhitzt genau die benoetigte Menge.
+const C = 4.19, LEITUNG = 10, DUSCH_L_MIN = 10, CENT_KWH = 35, KJ_KWH = 3600;
+const WANNEN = { klein: { name: "Kleine Wanne", l: 120 }, gross: { name: "Große Wanne", l: 180 } };
+const TEMPS = { kalt: { name: "Kalt", t: 30 }, mittel: { name: "Mittelwarm", t: 38 }, heiss: { name: "Heiß", t: 42 } };
+const POWERS = [2, 3, 6];
+const KIND = { baden: "Baden", duschen: "Duschen" };
+const FACTOR = { menge: "Wassermenge", temp: "Temperatur", power: "Boilerleistung" };
+const STEPS = { menge: 1, temp: 2, boiler: 3, lauf: 4 };
+const KEY = "duschen-oder-baden-v3";
+
+const fresh = () => ({ screen: "start", guess: null, kind: "baden", wanne: "gross", min: 8, temp: "mittel", power: 3,
+                       cur: null, runs: [], view: 0, base: null, change: null });
+let st = fresh();
+try { const s = JSON.parse(localStorage.getItem(KEY)); if (s && s.runs) st = Object.assign(fresh(), s); } catch (e) {}
+const save = () => { try { localStorage.setItem(KEY, JSON.stringify(st)); } catch (e) {} };
+
+const main = document.getElementById("main"), top_ = document.getElementById("top");
+const num = (x, d = 0) => x.toLocaleString("de-DE", { minimumFractionDigits: d, maximumFractionDigits: d });
+const euro = x => x.toLocaleString("de-DE", { style: "currency", currency: "EUR" });
+const liters = () => st.kind === "baden" ? WANNEN[st.wanne].l : st.min * DUSCH_L_MIN;
+const what = () => st.kind === "baden" ? WANNEN[st.wanne].name : `${st.min} min duschen`;
+const dauer = s => { const m = Math.floor(s / 60), r = s % 60, h = Math.floor(m / 60);
+  return h ? `${h} h ${m % 60} min` : `${m} min ${r} s`; };
+const kosten = q => q / KJ_KWH * CENT_KWH / 100;
+const parse = v => {   // versteht 21.120, 21 120, 21120,5 und 21120.5
+  let t = String(v).replace(/\s/g, "");
+  if (t.includes(",") || /^\d{1,3}(\.\d{3})+$/.test(t)) t = t.replace(/\./g, "").replace(",", ".");
+  return parseFloat(t);
+};
+const baseRun = () => st.base === null ? null : st.runs[st.base];
+
+function makeRun(tip) {
+  const l = liters(), target = TEMPS[st.temp].t, dT = target - LEITUNG;
+  // Waerme auf 10 kJ gerundet, damit sie bei anderer Leistung sichtbar gleich bleibt
+  const q = Math.round(l * C * dT / 10) * 10;
+  return { n: st.runs.length + 1, base: st.base, changed: st.change, kind: st.kind, what: what(), l,
+           tempKey: st.temp, target, dT, power: st.power, wanne: st.wanne, min: st.min,
+           t: Math.round(q / st.power), tip, q };
+}
+
+// Nur der gewaehlte Faktor darf vom Ausgangsdurchlauf abweichen.
+function changeDone() {
+  const b = baseRun();
+  if (!b) return true;
+  if (st.change === "menge") return what() !== b.what;
+  if (st.change === "temp") return st.temp !== b.tempKey;
+  return st.power !== b.power;
+}
+function applyBase(b) {
+  st.kind = b.kind; st.wanne = b.wanne; st.min = b.min; st.temp = b.tempKey; st.power = b.power;
+}
+
+// ------------------------------------------------------------------ Diagramm
+function ticks(maxMin) {
+  const step = [1, 2, 5, 10, 15, 20, 30, 60].find(s => maxMin / s <= 5) || 120;
+  return { step, max: Math.max(step, Math.ceil(maxMin / step) * step) };
+}
+function pairSeries(run, p) {
+  const b = run.base === null ? null : st.runs[run.base];
+  return [...(b ? [{ run: b, role: "alt" }] : []), { run, role: "neu", p }];
+}
+function chart(series, opts = {}) {
+  const W = 340, H = 230, L = 34, R = 14, T = 24, B = 36, yMin = 10, yMax = 50;
+  const tk = ticks(Math.max(...series.map(s => s.run.t / 60), 1));
+  const x = m => L + (W - L - R) * m / tk.max, y = c => H - B - (H - B - T) * (c - yMin) / (yMax - yMin);
+  let g = "";
+  for (let c = yMin; c <= yMax; c += 10) {
+    g += `<line x1="${L}" x2="${W - R}" y1="${y(c)}" y2="${y(c)}" stroke="var(--grid)"/>` +
+         `<text x="${L - 6}" y="${y(c) + 4}" text-anchor="end">${c}</text>`;
+  }
+  for (let m = 0; m <= tk.max; m += tk.step) g += `<text x="${x(m)}" y="${H - B + 16}" text-anchor="middle">${m}</text>`;
+  g += `<text x="${(L + W - R) / 2}" y="${H - 3}" text-anchor="middle">Heizdauer in Minuten</text>`;
+  g += `<text x="${L - 6}" y="12" text-anchor="end">°C</text>`;
+  const ends = [];
+  series.forEach(s => {
+    const p = s.p === undefined ? 1 : s.p, m = s.run.t / 60 * p, c = LEITUNG + s.run.dT * p, col = `var(--${s.role})`;
+    g += `<line x1="${x(0)}" y1="${y(LEITUNG)}" x2="${x(m)}" y2="${y(c)}" stroke="${col}" stroke-width="2.5" stroke-linecap="round"${s.role === "alt" ? ' stroke-dasharray="7 4"' : ""}/>`;
+    g += `<circle cx="${x(m)}" cy="${y(c)}" r="5" fill="${col}" stroke="var(--surface)" stroke-width="2"/>`;
+    ends.push({ px: x(m), py: y(c), name: `Durchlauf ${s.run.n}` });
+  });
+  if (series.length > 1 && !opts.running) {
+    // Steilere Kurve: Beschriftung darueber, flachere: darunter
+    ends.sort((a, b) => (y(LEITUNG) - a.py) / (a.px - L) - (y(LEITUNG) - b.py) / (b.px - L));
+    ends[0].below = true;
+  }
+  if (!opts.running) ends.forEach(e => {
+    const left = e.px > W / 2;
+    g += `<text class="lab" x="${e.px + (left ? -8 : 8)}" y="${e.below ? e.py + 18 : e.py - 8}" text-anchor="${left ? "end" : "start"}">${e.name}</text>`;
+  });
+  if (opts.cross !== undefined) {
+    g += `<line x1="${x(opts.cross)}" x2="${x(opts.cross)}" y1="${T}" y2="${H - B}" stroke="var(--muted)" stroke-dasharray="2 3"/>`;
+  }
+  const label = series.map(s => `Durchlauf ${s.run.n}: von ${LEITUNG} °C linear auf ${s.run.target} °C in ${dauer(s.run.t)}`).join("; ");
+  return `<svg class="chart" viewBox="0 0 ${W} ${H}" role="img" aria-label="Temperaturverlauf. ${label}" data-max="${tk.max}" data-l="${L}" data-w="${W - L - R}">${g}</svg>`;
+}
+const legend = series => series.length < 2 ? "" : `<div class="legend">` + series.map(s =>
+  `<span><svg viewBox="0 0 26 8"><line x1="1" x2="25" y1="4" y2="4" stroke="var(--${s.role})" stroke-width="2.5"${s.role === "alt" ? ' stroke-dasharray="7 4"' : ""}/></svg>Durchlauf ${s.run.n}</span>`).join("") + `</div>`;
+
+function readout(series, m) {
+  return series.map(s => {
+    const mm = Math.min(m, s.run.t / 60), c = LEITUNG + s.run.dT * mm / (s.run.t / 60);
+    return `Durchlauf ${s.run.n}: ${num(c, 1)} °C` + (m > s.run.t / 60 ? " (fertig)" : "");
+  }).join(" · ");
+}
+function bindChart(series) {
+  const box = document.getElementById("chartbox"), out = document.getElementById("chartout");
+  if (!box) return;
+  const draw = e => {
+    const svg = box.querySelector("svg"), r = svg.getBoundingClientRect();
+    const px = (e.clientX - r.left) / r.width * 340, l = +svg.dataset.l, w = +svg.dataset.w, max = +svg.dataset.max;
+    const m = Math.max(0, Math.min(max, (px - l) / w * max));
+    box.innerHTML = chart(series, { cross: m });
+    out.textContent = `Nach ${num(m, 1)} min: ${readout(series, m)}`;
+  };
+  box.addEventListener("pointerdown", draw);
+  box.addEventListener("pointermove", e => { if (e.buttons || e.pointerType === "mouse") draw(e); });
+}
+
+// ------------------------------------------------------------------ Bausteine
+const opt = (act, val, on, text, small = "") =>
+  `<button class="opt" data-act="${act}" data-val="${val}" aria-pressed="${on}">${text}${small ? `<small>${small}</small>` : ""}</button>`;
+
+function mengeEditor(b) {
+  const body = st.kind === "baden"
+    ? `<div class="grid two">${Object.keys(WANNEN).map(k => opt("wanne", k, st.wanne === k, WANNEN[k].name,
+        WANNEN[k].l + " l" + (b && b.kind === "baden" && b.wanne === k ? " (vorher)" : ""))).join("")}</div>`
+    : `<label for="min">Wie lange duschst du?</label>
+       <div class="stepper">
+         <button class="opt" data-act="minus" aria-label="Eine Minute weniger">−</button>
+         <output id="minout">${st.min} min</output>
+         <button class="opt" data-act="plus" aria-label="Eine Minute mehr">+</button>
+       </div>
+       <input id="min" type="range" min="1" max="30" step="1" value="${st.min}">
+       <p class="muted">Die Dusche liefert ${DUSCH_L_MIN} Liter pro Minute.</p>`;
+  return `<div class="grid two">${opt("kind", "baden", st.kind === "baden", "Baden")}${opt("kind", "duschen", st.kind === "duschen", "Duschen")}</div>
+    <div>${body}</div>
+    <div class="big-out"><strong id="lout">${liters()} Liter</strong>Wasser</div>`;
+}
+const tempEditor = b => `<div class="grid three">${Object.keys(TEMPS).map(k => opt("temp", k, st.temp === k, TEMPS[k].name,
+    TEMPS[k].t + " °C" + (b && b.tempKey === k ? " (vorher)" : ""))).join("")}</div>
+  <div class="big-out"><strong>${TEMPS[st.temp].t - LEITUNG} °C</strong>muss das Wasser wärmer werden (Leitung: ${LEITUNG} °C)</div>`;
+const powerEditor = b => `<div class="grid three">${POWERS.map(p => opt("power", p, st.power === p, p + " kW",
+    p + " kJ pro s" + (b && b.power === p ? " (vorher)" : ""))).join("")}</div>`;
+const tipField = `<div><label for="tip">Dein Tipp: Wie viele Minuten läuft der Boiler?</label>
+  <input id="tip" type="text" inputmode="decimal" autocomplete="off" placeholder="Minuten"></div>`;
+
+// ------------------------------------------------------------------ Bildschirme
+const screens = {
+  start: () => `
+    <h1>Duschen oder Baden?</h1>
+    <p>Was ist günstiger? Du stellst ein, wie du duschst und badest. Ein Wasserboiler macht das Wasser heiß, und du findest heraus, wie lange er läuft und wie viel Wärme das Wasser dabei aufnimmt.</p>
+    <h2>Was vermutest du?</h2>
+    <div class="grid">
+      ${opt("guess", "Baden", false, "Baden ist günstiger")}
+      ${opt("guess", "Duschen", false, "Duschen ist günstiger")}
+      ${opt("guess", "Kommt darauf an", false, "Kommt darauf an")}
+    </div>`,
+
+  menge: () => `<h2>Wie viel Wasser brauchst du?</h2>${mengeEditor(null)}
+    <div class="actions"><button class="primary" data-act="go" data-val="temp">Weiter</button></div>`,
+
+  temp: () => `<h2>Wie warm soll das Wasser sein?</h2>${tempEditor(null)}
+    <div class="actions"><button class="primary" data-act="go" data-val="boiler">Weiter</button></div>`,
+
+  boiler: () => `<h2>Der Wasserboiler</h2>
+    <p>Welche Leistung hat dein Boiler?</p>${powerEditor(null)}
+    <div class="fact"><p>${liters()} l Wasser von ${LEITUNG} °C auf ${TEMPS[st.temp].t} °C</p>
+    <p>Ein Boiler mit ${st.power} kW gibt in jeder Sekunde ${st.power} kJ Wärme an das Wasser ab.</p></div>
+    ${tipField}
+    <div class="actions"><button class="primary" id="startbtn" data-act="run" disabled>Boiler starten</button></div>`,
+
+  aendern: () => {
+    const b = baseRun(), c = st.change;
+    const rest = [
+      c !== "menge" ? `Wassermenge: ${b.what}, ${b.l} l` : "",
+      c !== "temp" ? `Temperatur: ${b.target} °C` : "",
+      c !== "power" ? `Boilerleistung: ${b.power} kW` : "",
+    ].filter(Boolean).join("<br>");
+    const editor = c === "menge" ? mengeEditor(b) : c === "temp" ? tempEditor(b) : powerEditor(b);
+    return `<h2>Ändere die ${FACTOR[c]}</h2>
+      ${editor}
+      <div class="locked"><strong>Das bleibt wie in Durchlauf ${b.n}:</strong>${rest}</div>
+      <p class="muted">Durchlauf ${b.n} hat ${dauer(b.t)} gedauert.</p>
+      ${tipField}
+      <div class="actions"><button class="primary" id="startbtn" data-act="run" disabled>Boiler starten</button></div>`;
+  },
+
+  lauf: () => `<h2>Der Boiler läuft</h2>
+    <p class="muted">Durchlauf ${st.cur.n}: ${st.cur.l} l auf ${st.cur.target} °C mit ${st.cur.power} kW</p>
+    <div class="readouts"><div><strong id="rt">${LEITUNG},0 °C</strong>Temperatur</div><div><strong id="rz">0 min 0 s</strong>Heizdauer</div></div>
+    <div class="bar" aria-hidden="true"><i id="fill"></i></div>
+    <div id="legendbox"></div><div id="chartbox"></div>
+    <p class="muted" id="chartout">Zeitraffer</p>
+    <div id="after"></div>
+    <div class="actions" id="runactions"><button class="secondary" data-act="skip">Zum Ende springen</button></div>`,
+
+  vergleich: () => {
+    const r = st.runs[st.view], b = r.base === null ? null : st.runs[r.base], series = pairSeries(r);
+    const rows = [
+      ["Einstellung", x => x.what, "menge"], ["Wasser", x => `${x.l} l`, "menge"],
+      ["Temperatur", x => `${x.target} °C (+${x.dT} °C)`, "temp"], ["Leistung", x => `${x.power} kW`, "power"],
+      ["Heizdauer", x => dauer(x.t)], ["in Sekunden", x => `${num(x.t)} s`], ["Wärme", x => `${num(x.q)} kJ`],
+      ["Stromkosten", x => euro(kosten(x.q))],
+    ];
+    const table = `<table class="pair"><thead><tr><th></th>${b ? `<th scope="col">Durchlauf ${b.n}</th>` : ""}<th scope="col">Durchlauf ${r.n}</th></tr></thead><tbody>
+      ${rows.map(([lab, fn, key]) => `<tr${key && key === r.changed ? ' class="changed"' : ""}><th scope="row">${lab}</th>${b ? `<td>${fn(b)}</td>` : ""}<td>${fn(r)}</td></tr>`).join("")}
+      </tbody></table>`;
+    const prompt = !b ? "" : {
+      menge: "Vergleiche Wassermenge und Wärme. Was fällt dir auf?",
+      temp: "Vergleiche Temperaturunterschied und Wärme. Was fällt dir auf?",
+      power: "Was hat sich verändert, und was ist gleich geblieben?",
+    }[r.changed];
+    let cost = "";
+    if (b) {
+      const diff = Math.abs(kosten(b.q) - kosten(r.q)), cheap = kosten(r.q) < kosten(b.q) ? r : b;
+      const label = cheap.kind !== (cheap === r ? b : r).kind ? KIND[cheap.kind] : `Durchlauf ${cheap.n}`;
+      cost = `<div class="fact"><p>${diff < 0.005 ? "Beide Durchläufe kosten gleich viel." : `<strong>${label}</strong> ist um ${euro(diff)} günstiger.`}</p>
+        ${b.kind !== r.kind ? `${st.guess ? `<p>Deine Vermutung am Anfang: ${st.guess}.</p>` : ""}<p>Ab wie vielen Minuten Duschen wird es teurer als das Bad? Finde es heraus.</p>` : ""}</div>`;
+    }
+    return `<h2>${b ? `Durchlauf ${b.n} und ${r.n}` : `Durchlauf ${r.n}`}</h2>
+      ${b ? `<p class="muted">Geändert: <strong>${FACTOR[r.changed]}</strong>. Alles andere ist gleich.</p>` : ""}
+      ${legend(series)}<div id="chartbox">${chart(series)}</div>
+      <p class="muted" id="chartout">Tippe ins Diagramm, um Werte abzulesen.</p>
+      ${table}
+      ${prompt ? `<div class="fact"><p><strong>${prompt}</strong></p></div>` : ""}
+      ${cost}
+      <div><h3>Nächster Durchlauf</h3>
+      <p class="muted">Du gehst von Durchlauf ${r.n} aus und darfst genau eine Sache ändern. Was änderst du?</p></div>
+      <div class="grid">${Object.keys(FACTOR).map(k => opt("change", k, false, FACTOR[k])).join("")}</div>
+      ${st.runs.length > 1 ? `<details${st.runs.length > 2 ? " open" : ""}><summary>Alle Durchläufe (${st.runs.length})</summary>
+        <p class="muted" style="margin-top:6px">Tippe einen Durchlauf an, um ihn mit seinem Ausgangsdurchlauf zu vergleichen und von dort weiterzumachen.</p>
+        <div class="hist">${st.runs.map((x, i) => `<button data-act="view" data-val="${i}" aria-current="${i === st.view}">
+          <strong>Durchlauf ${x.n}${x.base === null ? "" : `: ${FACTOR[x.changed]} geändert (zu Durchlauf ${st.runs[x.base].n})`}</strong>
+          ${x.what}, ${x.l} l, ${x.target} °C, ${x.power} kW: ${dauer(x.t)} (${num(x.t)} s), ${num(x.q)} kJ</button>`).join("")}</div></details>` : ""}
+      <p class="muted">Modell: keine Wärmeverluste, 1 l Wasser wiegt 1 kg, nur Stromkosten bei angenommenen ${CENT_KWH} Cent pro kWh, ohne Wasserpreis. Die Wärme ist auf 10 kJ gerundet.</p>
+      <div class="actions static"><button class="secondary" data-act="reset">Alles neu beginnen</button></div>`;
+  }
+};
+
+const BACK = { menge: "start", temp: "menge", boiler: "temp", aendern: "vergleich" };
+function refreshStart() {
+  const btn = document.getElementById("startbtn"), tip = document.getElementById("tip");
+  if (btn && tip) btn.disabled = !(parse(tip.value) > 0) || !changeDone();
+}
+function render() {
+  const oldTip = document.getElementById("tip"), keep = oldTip ? oldTip.value : "";
+  const n = STEPS[st.screen];
+  const runNo = st.cur && st.screen === "lauf" ? st.cur.n : st.runs.length + 1;
+  const label = st.screen === "vergleich" ? "Vergleich"
+    : st.screen === "start" ? "" : `Durchlauf ${runNo}${st.runs.length === 0 && n ? `, Schritt ${n} von 4` : ""}`;
+  top_.innerHTML = (BACK[st.screen] ? `<button class="link" data-act="back" data-val="${BACK[st.screen]}">‹ Zurück</button>` : "") +
+    (label ? `<span class="step">${label}</span>` : "");
+  main.innerHTML = screens[st.screen]();
+  window.scrollTo(0, 0);
+  save();
+  if (st.screen === "lauf") startRun();
+  if (st.screen === "vergleich") bindChart(pairSeries(st.runs[st.view]));
+  const tip = document.getElementById("tip");
+  if (tip) {
+    tip.value = keep;
+    tip.addEventListener("input", refreshStart);
+    refreshStart();
+  }
+  const range = document.getElementById("min");
+  if (range) range.addEventListener("input", () => { st.min = +range.value; showMin(); save(); });
+}
+function showMin() {
+  document.getElementById("minout").textContent = st.min + " min";
+  document.getElementById("min").value = st.min;
+  document.getElementById("lout").textContent = liters() + " Liter";
+  refreshStart();
+}
+
+// ------------------------------------------------------------------ Zeitraffer
+let raf = null, skipRun = null;
+function startRun() {
+  const r = st.cur;
+  const series = p => { const b = r.base === null ? null : st.runs[r.base];
+    return [...(b ? [{ run: b, role: "alt" }] : []), { run: r, role: "neu", p }]; };
+  document.getElementById("legendbox").innerHTML = legend(series(1));
+  const reduce = window.matchMedia && matchMedia("(prefers-reduced-motion: reduce)").matches;
+  const ms = reduce ? 0 : Math.min(12000, Math.max(3000, r.t / 900 * 1000));   // 15 min Boilerzeit = 1 s, mindestens 3 s
+  const t0 = performance.now();
+  const box = document.getElementById("chartbox"), rt = document.getElementById("rt"), rz = document.getElementById("rz"), fill = document.getElementById("fill");
+  const frame = now => {
+    const p = ms ? Math.min(1, (now - t0) / ms) : 1;
+    rt.textContent = num(LEITUNG + r.dT * p, 1) + " °C";
+    rz.textContent = dauer(Math.round(r.t * p));
+    fill.style.width = p * 100 + "%";
+    box.innerHTML = chart(series(p), { running: p < 1 });
+    if (p < 1) { raf = requestAnimationFrame(frame); return; }
+    raf = null; finishRun(series(1));
+  };
+  skipRun = () => { if (raf) cancelAnimationFrame(raf); raf = null; frame(Infinity); };
+  raf = requestAnimationFrame(frame);
+}
+function finishRun(series) {
+  const r = st.cur;
+  document.querySelector("main h2").textContent = "Der Boiler ist fertig";
+  document.getElementById("chartout").textContent = "Tippe ins Diagramm, um Werte abzulesen.";
+  document.getElementById("after").innerHTML = `<div class="fact"><p>Dein Tipp: <strong>${num(r.tip, r.tip % 1 ? 1 : 0)} min</strong>. Tatsächlich: <strong>${dauer(r.t)}</strong>.</p>
+    <p>Das Wasser hat dabei rund <strong>${num(r.q)} kJ</strong> Wärme aufgenommen.</p>
+    <p><strong>Schau dir die Kurve an:</strong> Wie ändert sich die Temperatur während des Heizens?</p></div>`;
+  document.getElementById("runactions").innerHTML = `<button class="primary" data-act="tovgl">Zum Vergleich</button>`;
+  bindChart(series);
+}
+
+// ------------------------------------------------------------------ Bedienung
+document.addEventListener("click", e => {
+  const b = e.target.closest("[data-act]"); if (!b) return;
+  const act = b.dataset.act, val = b.dataset.val;
+  switch (act) {
+    case "guess": st.guess = val; st.screen = "menge"; break;
+    case "go": st.screen = val; break;
+    case "back":
+      if (st.screen === "aendern") applyBase(st.runs[st.view]);
+      st.screen = val; break;
+    case "kind": st.kind = val; break;
+    case "wanne": st.wanne = val; break;
+    case "minus": st.min = Math.max(1, st.min - 1); showMin(); save(); return;
+    case "plus": st.min = Math.min(30, st.min + 1); showMin(); save(); return;
+    case "temp": st.temp = val; break;
+    case "power": st.power = +val; break;
+    case "run": st.cur = makeRun(parse(document.getElementById("tip").value)); st.screen = "lauf"; break;
+    case "skip": if (skipRun) skipRun(); return;
+    case "tovgl": st.runs.push(st.cur); st.view = st.runs.length - 1; st.screen = "vergleich"; break;
+    case "change": {
+      const from = st.runs[st.view];
+      applyBase(from); st.base = st.view; st.change = val; st.screen = "aendern";
+      const tip = document.getElementById("tip"); if (tip) tip.value = "";
+      break;
+    }
+    case "view": st.view = +val; applyBase(st.runs[st.view]); break;
+    case "reset": if (!confirm("Alle Durchläufe löschen und neu beginnen?")) return; st = fresh(); break;
+  }
+  render();
+});
+
+render();
+</script>
+</body>
+</html>
